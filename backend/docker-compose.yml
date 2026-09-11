@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: edurag_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: edurag_db
+      POSTGRES_USER: edurag_user
+      POSTGRES_PASSWORD: edurag_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U edurag_user -d edurag_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: edurag_backend
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://edurag_user:edurag_password@db:5432/edurag_db
+      - JWT_SECRET_KEY=super-secret-key-change-this-in-production-min-32-chars
+      - LLM_PROVIDER=mock
+      - EMBEDDING_PROVIDER=mock
+    volumes:
+      - ./uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
