@@ -1,58 +1,243 @@
-# EduRAG / LearnMate
+# 🎓 EduRAG — Grounded AI Study Studio & Knowledge Workspace
 
-LearnMate is a React frontend for the EduRAG FastAPI backend. The frontend uses the backend for account sign-in, courses, course chat, citations, saved conversations, and administrator document uploads.
+<div align="center">
 
-## Run locally
+[![React](https://img.shields.io/badge/Frontend-React%2018%20%7C%20Vite-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org/)
+[![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![PostgreSQL](https://img.shields.io/badge/Vector%20DB-PostgreSQL%20%2B%20pgvector-336791?style=for-the-badge&logo=postgresql&logoColor=white)](https://github.com/pgvector/pgvector)
+[![Architecture](https://img.shields.io/badge/UX%20Flow-Google%20NotebookLM%20Inspired-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://notebooklm.google/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](LICENSE)
 
-Prerequisites: Node.js, Python 3.12+, and Docker Desktop (for PostgreSQL with pgvector).
+<p align="center">
+  <strong>Transform textbooks, lecture slides, and research notes into grounded, verifiable AI notebooks, 3D flashcards, two-host audio podcasts, and self-testing study studios.</strong>
+</p>
 
-1. Start PostgreSQL from the `backend` folder:
+[✨ Live Features](#-key-features) • [⚡ Quick Start](#-quick-start) • [🏗️ Architecture](#-system-architecture) • [🛠️ Tech Stack](#-tech-stack) • [📖 API Reference](#-api-reference)
 
-   ```powershell
-   cd backend
-   docker compose up -d db
-   ```
+---
 
-2. In `backend`, copy `.env.example` to `.env`, create/activate a Python virtual environment, then install and initialize the backend:
+</div>
 
-   ```powershell
-   python -m venv .venv
-   .venv\Scripts\Activate.ps1
-   pip install -r requirements.txt
-   alembic upgrade head
-   uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
-   ```
+## 🌟 Overview
 
-   The backend API documentation is at <http://127.0.0.1:8000/docs>. The example settings use mock AI and embedding providers. To use NVIDIA's hosted Nemotron endpoints, edit `backend/.env` and set:
+**EduRAG** (powered by **LearnMate**) is a state-of-the-art educational knowledge studio inspired by the clean UX flow of **Google NotebookLM** and modern pastel dashboard design. 
 
-   ```dotenv
-   LLM_PROVIDER=nvidia
-   LLM_MODEL=nvidia/nemotron-3.5-lightning-30b-a3b
-   EMBEDDING_PROVIDER=nvidia
-   EMBEDDING_MODEL=nvidia/nemotron-3-embed-1b
-   NVIDIA_API_KEY=your_key_here
-   ```
+Unlike generic chatbots that produce hallucinations, EduRAG operates on a strict **Grounded Retrieval-Augmented Generation (RAG)** pipeline. Every summary, answer, flashcard, and quiz is anchored in your uploaded course materials with direct page citations and relevance scoring.
 
-   The same NVIDIA key is used by both models. Keep it in `backend/.env`, never in frontend files or chat messages. NVIDIA's endpoints are cloud services, so document text used for embeddings and retrieved passages sent with questions go to NVIDIA. The free endpoints are subject to NVIDIA's API trial terms and availability.
+---
 
-3. In another terminal, from the repository root, install and start the frontend:
+## ✨ Key Features
 
-   ```powershell
-   npm install
-   npm run dev
-   ```
+### 📓 1. Google NotebookLM-Inspired Study Canvas
+* **Dynamic 3-Column Studio Flow**: Sources & documents on the left, interactive grounded conversation canvas in the center, and multi-modal study tools on the right.
+* **Granular Knowledge Selection**: Filter which source documents are active for specific queries or revision sessions.
+* **Direct Page Citations**: Every response includes clickable source references with relevance scores and exact page numbers.
 
-   Open <http://127.0.0.1:5173>. Vite forwards `/api` requests to the local backend on port 8000.
+### 🎙️ 2. Two-Host Audio Podcasts (Deep Dive Overviews)
+* Generate lifelike, conversational podcast discussions between two AI hosts covering core concepts from your lecture notes.
+* Real-time audio playback controls with narration speeds and transcript synchronization.
 
-4. Create an account in the app. Public signups always receive the student role. An administrator must grant admin access through a trusted database/admin process before that account can upload course materials. The UI does not let public users promote themselves.
+### 🗂️ 3. Multi-Modal Study Studio Tools
+* **Interactive 3D Flashcards**: Flip cards dynamically between question and answer with difficulty rating and mastery tracking.
+* **Practice Quizzes & Self-Tests**: Instant multiple-choice questions with answer explanations and scoring.
+* **Hierarchical Concept Maps**: Visual tree diagrams breaking down complex topics into digestible sub-branches.
+* **Executive Study Guides**: Key term glossaries, exam cheat sheets, and formula summaries.
 
-## How the connection works
+### 🎨 4. Premium Aesthetic & UI/UX
+* Curated pastel color palette (lavender, sky, mint, rose, peach).
+* Softened typography contrast (slate/charcoal) engineered for long reading sessions.
+* Context-aware header with interactive breadcrumb subject switcher (`Notebooks / [Course Name] ▾`).
+* User profile drawer with live scholar statistics and citation accuracy metrics.
 
-- The frontend sends JSON requests to `/api/v1` through Vite's local proxy.
-- Sign-in returns a bearer token. The frontend keeps it in the current browser tab's `sessionStorage` and sends it in the `Authorization` header for private endpoints.
-- Chat requests include the selected course ID and, after the first answer, the conversation session ID. The backend returns the answer and source citations.
-- Uploads use `multipart/form-data`, which sends the file and its course/title/type fields. Browser code never receives the AI provider key.
-- Set `VITE_API_BASE_URL` to the deployed backend's `/api/v1` URL when deploying the frontend, and configure the backend's `CORS_ORIGINS` for the deployed frontend origin. Use HTTPS in production.
-- If changing the embedding provider, reprocess or reupload documents so their stored vectors match the new embedding model.
+---
 
-More backend details and endpoint examples are in [backend/README.md](backend/README.md).
+## 🏗️ System Architecture
+
+```mermaid
+flowchart TB
+    subgraph Client["🖥️ React 18 + Vite Frontend"]
+        UI["Dashboard & Notebook Studio"]
+        Tools["Audio Overview | 3D Flashcards | Quizzes"]
+        Auth["JWT Session Storage"]
+    end
+
+    subgraph Server["⚡ FastAPI Backend Engine"]
+        Router["/api/v1 Routes"]
+        AuthSvc["Auth & User Service"]
+        DocSvc["Document Processing & Chunking"]
+        RAG["RAG Retrieval & Prompt Synthesizer"]
+        Monitor["Provider Quota & Health Monitor"]
+    end
+
+    subgraph Storage["🗄️ Storage & Vector DB"]
+        PG[("PostgreSQL")]
+        VEC[("pgvector Embeddings")]
+        FS["Encrypted File Storage"]
+    end
+
+    subgraph LLMProviders["🤖 LLM & Embedding Providers"]
+        NVIDIA["NVIDIA Nemotron"]
+        GEMINI["Google Gemini"]
+        GROQ["Groq LLaMA 3"]
+        OPENAI["OpenAI GPT-4o"]
+    end
+
+    UI -->|REST API Requests| Router
+    Router --> AuthSvc
+    Router --> DocSvc
+    Router --> RAG
+    Router --> Monitor
+    DocSvc --> FS
+    DocSvc -->|Embeddings| VEC
+    RAG -->|Similarity Search| VEC
+    RAG --> LLMProviders
+```
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technology | Purpose |
+| :--- | :--- | :--- |
+| **Frontend** | **React 18, Vite** | Fast, component-driven client architecture |
+| **Styling** | **Vanilla CSS (Design Tokens)** | Custom glassmorphism, responsive grids & pastel tokens |
+| **Icons & Media**| **Lucide React** | Clean, minimalist vector iconography |
+| **Backend** | **Python 3.12+, FastAPI** | High-performance asynchronous REST API |
+| **Database** | **PostgreSQL + pgvector** | Relational metadata & high-dimensional vector search |
+| **ORM & Migrations**| **SQLAlchemy, Alembic** | Schema management and type-safe database queries |
+| **LLM Orchestration**| **Nemotron / Gemini / Groq / OpenAI** | RAG query synthesis, podcast scripting & embeddings |
+
+---
+
+## ⚡ Quick Start
+
+### Prerequisites
+* **Node.js 18+** & **npm**
+* **Python 3.12+**
+* **Docker Desktop** (for PostgreSQL with `pgvector`)
+
+---
+
+### Step 1: Clone Repository & Start Vector Database
+
+```bash
+git clone https://github.com/kalviumcommunity/EduRAG.git
+cd EduRAG
+
+# Start PostgreSQL with pgvector extension
+cd backend
+docker compose up -d db
+```
+
+---
+
+### Step 2: Configure & Start FastAPI Backend
+
+```bash
+# 1. Create and activate Python virtual environment
+python -m venv .venv
+
+# On Windows:
+.venv\Scripts\Activate.ps1
+# On macOS/Linux:
+source .venv/bin/activate
+
+# 2. Install dependencies
+pip install -r requirements.txt
+
+# 3. Configure environment
+cp .env.example .env
+
+# 4. Run database migrations
+alembic upgrade head
+
+# 5. Start development backend server
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+> **API Documentation**: Access Swagger UI at [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+
+---
+
+### Step 3: Start React Frontend
+
+In a separate terminal at the repository root:
+
+```bash
+# Install dependencies
+npm install
+
+# Start Vite dev server
+npm run dev
+```
+
+Open [http://127.0.0.1:5173](http://127.0.0.1:5173) in your browser.
+
+---
+
+## ⚙️ Environment Configuration
+
+Edit `backend/.env` to configure your database connection and preferred AI provider:
+
+```dotenv
+# Database
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/edurag
+
+# Security
+SECRET_KEY=your_super_secret_jwt_key_here
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=1440
+
+# AI Provider Settings (Options: mock, nvidia, gemini, groq, openai)
+LLM_PROVIDER=nvidia
+LLM_MODEL=nvidia/nemotron-3.5-lightning-30b-a3b
+EMBEDDING_PROVIDER=nvidia
+EMBEDDING_MODEL=nvidia/nemotron-3-embed-1b
+NVIDIA_API_KEY=your_nvidia_api_key_here
+```
+
+---
+
+## 📖 API Reference
+
+| Method | Endpoint | Description | Auth Required |
+| :--- | :--- | :--- | :---: |
+| `POST` | `/api/v1/auth/register` | Create a student account | No |
+| `POST` | `/api/v1/auth/login` | Obtain JWT bearer token | No |
+| `GET` | `/api/v1/auth/me` | Retrieve active user profile | Yes |
+| `GET` | `/api/v1/courses` | List all enrolled course notebooks | Yes |
+| `POST` | `/api/v1/courses` | Create a new course notebook | Yes |
+| `GET` | `/api/v1/courses/{id}/documents` | List indexed documents for a course | Yes |
+| `POST` | `/api/v1/documents/upload` | Upload & vectorize PDF/DOCX/Text | Yes |
+| `POST` | `/api/v1/chat/ask` | Grounded RAG query with citations | Yes |
+| `GET` | `/api/v1/chat/sessions` | Retrieve conversation histories | Yes |
+
+---
+
+## 🔒 Security & Privacy
+
+* **Zero Key Leakage**: API provider keys stay strictly on the backend and are never sent to the browser.
+* **Isolated Vector Namespaces**: Document embeddings are strictly partitioned by course and user access boundaries.
+* **Role-Based Access Control**: Document ingestion is restricted to authenticated notebook managers.
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'feat: Add AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+---
+
+## 📄 License
+
+Distributed under the MIT License. See `LICENSE` for more information.
+
+<div align="center">
+  <sub>Built with ❤️ by the EduRAG Team. Inspired by Google NotebookLM.</sub>
+</div>
