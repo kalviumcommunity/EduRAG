@@ -29,6 +29,8 @@ class ChatService:
                 raise NotFoundException(f"Chat session with ID {session_id} not found.")
             if session.user_id != user_id:
                 raise ForbiddenException("You do not have permission to access this chat session.")
+            if session.course_id != course_id:
+                raise ForbiddenException("This chat session belongs to a different course.")
         else:
             # Auto generate title from first question
             title_snippet = question[:40] + "..." if len(question) > 40 else question

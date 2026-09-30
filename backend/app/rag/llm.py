@@ -37,7 +37,12 @@ class MockLLMProvider(BaseLLMProvider):
 
 
 class OpenAILLMProvider(BaseLLMProvider):
-    def __init__(self, api_key: str = settings.LLM_API_KEY, model: str = settings.LLM_MODEL):
+    def __init__(
+        self,
+        api_key: str = settings.LLM_API_KEY,
+        model: str = settings.LLM_MODEL,
+        base_url: Optional[str] = None,
+    ):
         if not api_key:
             logger.warning("OpenAI API key not configured for LLM; falling back to MockLLMProvider")
             self._fallback = MockLLMProvider()
@@ -45,7 +50,7 @@ class OpenAILLMProvider(BaseLLMProvider):
         else:
             self.use_fallback = False
             from openai import OpenAI
-            self.client = OpenAI(api_key=api_key)
+            self.client = OpenAI(api_key=api_key, base_url=base_url)
             self.model = model
 
     def generate_answer(
@@ -72,8 +77,19 @@ class OpenAILLMProvider(BaseLLMProvider):
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
-                temperature=0.2,  # Low temperature for strict grounding
+                temperature=0.35,
             )
+            
+            # Record live token usage
+            total_tokens = 0
+            if hasattr(response, 'usage') and response.usage:
+                total_tokens = getattr(response.usage, 'total_tokens', 0) or 0
+            if total_tokens == 0:
+                total_tokens = len(user_content.split()) + len(response.choices[0].message.content.split())
+                
+            from app.services.key_monitor.usage_tracker import usage_tracker
+            usage_tracker.record_usage(provider=settings.LLM_PROVIDER, tokens=total_tokens, requests=1)
+            
             return response.choices[0].message.content.strip()
         except Exception as e:
             logger.error(f"OpenAI LLM completion error: {e}")
@@ -84,6 +100,15 @@ def get_llm_provider() -> BaseLLMProvider:
     provider = settings.LLM_PROVIDER.lower()
     if provider == "openai":
         return OpenAILLMProvider()
+    elif provider == "nvidia":
+        api_key = settings.NVIDIA_API_KEY or settings.LLM_API_KEY
+        if not api_key:
+            raise RuntimeError("NVIDIA_API_KEY or LLM_API_KEY is required when LLM_PROVIDER=nvidia.")
+        return OpenAILLMProvider(
+            api_key=api_key,
+            model=settings.LLM_MODEL,
+            base_url=settings.NVIDIA_API_BASE_URL,
+        )
     elif provider == "mock":
         return MockLLMProvider()
     else:

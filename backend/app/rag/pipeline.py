@@ -122,17 +122,10 @@ class RAGPipeline:
             if chunk.similarity_score >= settings.RAG_SIMILARITY_THRESHOLD
         ]
 
-        # 3. Handle Insufficient Context
-        if not relevant_chunks:
-            insufficient_msg = (
-                "I couldn't find sufficient information about this question in the provided course material."
-            )
-            return insufficient_msg, []
-
-        # 4. Format Prompt & Context
+        # 3. Format Prompt & Context
         formatted_context = PromptBuilder.format_context(relevant_chunks)
 
-        # 5. Send to LLM
+        # 4. Send to LLM
         answer = self.llm_provider.generate_answer(
             question=question,
             formatted_context=formatted_context,

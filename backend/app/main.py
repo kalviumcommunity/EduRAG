@@ -23,6 +23,10 @@ from app.api.routes import api_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+    from app.db.base import Base
+    from app.db.database import engine
+    import app.models  # noqa: F401
+    Base.metadata.create_all(bind=engine)
     logger.info(f"Starting {settings.PROJECT_NAME}...")
     logger.info(f"LLM Provider: {settings.LLM_PROVIDER}")
     logger.info(f"Embedding Provider: {settings.EMBEDDING_PROVIDER}")
@@ -61,6 +65,7 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 
 
 @app.get("/health", tags=["Health Check"])
+@app.get(f"{settings.API_V1_STR}/health", tags=["Health Check"])
 def health_check(response: Response, db: Session = Depends(get_db)):
     """
     Health check endpoint with database connectivity check.

@@ -28,15 +28,33 @@ class DocumentService:
     @staticmethod
     def upload_document(
         db: Session,
-        course_id: int,
-        title: str,
+        course_id: Optional[int],
+        title: Optional[str],
         document_type: str,
-        file: UploadFile,
+        file: Optional[UploadFile] = None,
+        text_content: Optional[str] = None,
+        course_name: Optional[str] = None,
     ) -> Document:
-        # Validate course exists
-        course = db.query(Course).filter(Course.id == course_id).first()
-        if not course:
-            raise NotFoundException(f"Course with ID {course_id} does not exist.")
+        # Validate or find/create course
+        if not course_id:
+            if not course_name or not course_name.strip():
+                raise ValidationException("Either course_id or a course name must be provided.")
+            name = course_name.strip()
+            course = db.query(Course).filter(Course.name.ilike(name)).first()
+            if not course:
+                course = Course(
+                    name=name,
+                    description=f"Course materials for {name}",
+                    is_active=True,
+                )
+                db.add(course)
+                db.commit()
+                db.refresh(course)
+            course_id = course.id
+        else:
+            course = db.query(Course).filter(Course.id == course_id).first()
+            if not course:
+                raise NotFoundException(f"Course with ID {course_id} does not exist.")
 
         # Validate document type
         doc_type = document_type.lower()
@@ -45,34 +63,45 @@ class DocumentService:
                 f"Invalid document type '{document_type}'. Allowed types: {', '.join(ALLOWED_DOCUMENT_TYPES)}"
             )
 
-        # Validate file extension
-        ext = DocumentService.validate_file(file)
+        if not file and not (text_content and text_content.strip()):
+            raise ValidationException("Please upload a file or paste text content.")
 
         # Ensure upload dir exists
         os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 
-        # Generate safe unique filename to prevent path traversal
-        safe_filename = f"{uuid.uuid4().hex}_{os.path.basename(file.filename or 'doc' + ext)}"
-        file_path = os.path.join(settings.UPLOAD_DIR, safe_filename)
-
-        # Read file contents & validate size
-        contents = file.file.read()
-        if len(contents) > settings.MAX_UPLOAD_SIZE:
-            raise ValidationException(
-                f"File size exceeds maximum allowed limit of {settings.MAX_UPLOAD_SIZE // (1024 * 1024)}MB"
-            )
-        if len(contents) == 0:
-            raise ValidationException("Uploaded file is empty.")
-
-        with open(file_path, "wb") as f:
-            f.write(contents)
+        if file:
+            # Validate file extension
+            ext = DocumentService.validate_file(file)
+            safe_filename = f"{uuid.uuid4().hex}_{os.path.basename(file.filename or 'doc' + ext)}"
+            file_path = os.path.join(settings.UPLOAD_DIR, safe_filename)
+            contents = file.file.read()
+            if len(contents) > settings.MAX_UPLOAD_SIZE:
+                raise ValidationException(
+                    f"File size exceeds maximum allowed limit of {settings.MAX_UPLOAD_SIZE // (1024 * 1024)}MB"
+                )
+            if len(contents) == 0:
+                raise ValidationException("Uploaded file is empty.")
+            with open(file_path, "wb") as f:
+                f.write(contents)
+            final_title = (title.strip() if title and title.strip() else file.filename) or safe_filename
+            display_filename = file.filename or safe_filename
+        else:
+            # Pasted text content
+            safe_filename = f"{uuid.uuid4().hex}_pasted_notes.txt"
+            file_path = os.path.join(settings.UPLOAD_DIR, safe_filename)
+            raw_text = text_content.strip()
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(raw_text)
+            first_line = raw_text.splitlines()[0][:50] if raw_text else "Pasted Notes"
+            final_title = (title.strip() if title and title.strip() else first_line) or "Pasted Notes"
+            display_filename = f"{final_title[:30]}.txt"
 
         # Create Document in DB
         doc = Document(
             course_id=course_id,
-            title=title.strip(),
+            title=final_title,
             document_type=doc_type,
-            file_name=file.filename or safe_filename,
+            file_name=display_filename,
             file_path=file_path,
             processing_status="pending",
         )
@@ -80,7 +109,7 @@ class DocumentService:
         db.commit()
         db.refresh(doc)
 
-        # Trigger synchronous RAG processing (can be background task)
+        # Trigger synchronous RAG processing
         pipeline = RAGPipeline()
         pipeline.process_document(db, doc.id)
 

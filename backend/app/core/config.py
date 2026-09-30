@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     LLM_PROVIDER: str = "mock"  # "openai", "mock", etc.
     LLM_MODEL: str = "gpt-3.5-turbo"
     LLM_API_KEY: str = ""
+    NVIDIA_API_KEY: str = ""
+    NVIDIA_API_BASE_URL: str = "https://integrate.api.nvidia.com/v1"
     
     EMBEDDING_PROVIDER: str = "mock"  # "openai", "mock", etc.
     EMBEDDING_MODEL: str = "text-embedding-3-small"
