@@ -1,7 +1,7 @@
 import hashlib
 import numpy as np
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Optional
 from app.core.config import settings
 from app.core.logging import logger
 
@@ -52,7 +52,12 @@ class MockEmbeddingProvider(BaseEmbeddingProvider):
 
 
 class OpenAIEmbeddingProvider(BaseEmbeddingProvider):
-    def __init__(self, api_key: str = settings.EMBEDDING_API_KEY, model: str = settings.EMBEDDING_MODEL):
+    def __init__(
+        self,
+        api_key: str = settings.EMBEDDING_API_KEY,
+        model: str = settings.EMBEDDING_MODEL,
+        base_url: Optional[str] = None,
+    ):
         if not api_key:
             logger.warning("OpenAI API key not set for Embedding provider; falling back to Mock provider")
             self._fallback = MockEmbeddingProvider()
@@ -60,7 +65,7 @@ class OpenAIEmbeddingProvider(BaseEmbeddingProvider):
         else:
             self.use_fallback = False
             from openai import OpenAI
-            self.client = OpenAI(api_key=api_key)
+            self.client = OpenAI(api_key=api_key, base_url=base_url)
             self.model = model
 
     def embed_text(self, text: str) -> List[float]:
@@ -96,6 +101,15 @@ def get_embedding_provider() -> BaseEmbeddingProvider:
     provider = settings.EMBEDDING_PROVIDER.lower()
     if provider == "openai":
         return OpenAIEmbeddingProvider()
+    elif provider == "nvidia":
+        api_key = settings.NVIDIA_API_KEY or settings.EMBEDDING_API_KEY or settings.LLM_API_KEY
+        if not api_key:
+            raise RuntimeError("NVIDIA_API_KEY, EMBEDDING_API_KEY, or LLM_API_KEY is required when EMBEDDING_PROVIDER=nvidia.")
+        return OpenAIEmbeddingProvider(
+            api_key=api_key,
+            model=settings.EMBEDDING_MODEL,
+            base_url=settings.NVIDIA_API_BASE_URL,
+        )
     elif provider == "mock":
         return MockEmbeddingProvider()
     else:

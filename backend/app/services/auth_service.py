@@ -12,15 +12,12 @@ class AuthService:
         if existing_user:
             raise DuplicateException("A user with this email already exists.")
 
-        role = data.role.lower() if data.role else "student"
-        if role not in ["student", "admin"]:
-            role = "student"
-
         user = User(
             name=data.name,
             email=data.email.lower(),
             password_hash=get_password_hash(data.password),
-            role=role,
+            # Public signup must never grant administrator privileges.
+            role="student",
             is_active=True,
         )
         db.add(user)

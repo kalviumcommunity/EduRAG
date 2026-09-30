@@ -43,10 +43,10 @@ def get_course(
 def create_course(
     data: CourseCreate,
     db: Session = Depends(get_db),
-    admin: User = Depends(get_current_admin),
+    current_user: User = Depends(get_current_user),
 ):
     """
-    Create a new course (Admin only).
+    Create a new course.
     """
     return CourseService.create_course(db, data)
 
@@ -56,10 +56,10 @@ def update_course(
     course_id: int,
     data: CourseUpdate,
     db: Session = Depends(get_db),
-    admin: User = Depends(get_current_admin),
+    current_user: User = Depends(get_current_user),
 ):
     """
-    Update an existing course (Admin only).
+    Update an existing course.
     """
     return CourseService.update_course(db, course_id, data)
 
@@ -68,10 +68,10 @@ def update_course(
 def delete_course(
     course_id: int,
     db: Session = Depends(get_db),
-    admin: User = Depends(get_current_admin),
+    current_user: User = Depends(get_current_user),
 ):
     """
-    Delete a course and all associated documents/chats (Admin only).
+    Delete a course and all associated documents/chats.
     """
     CourseService.delete_course(db, course_id)
     return None

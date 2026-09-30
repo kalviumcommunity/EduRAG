@@ -11,22 +11,26 @@ router = APIRouter(prefix="/documents", tags=["Documents"])
 
 @router.post("/upload", response_model=DocumentUploadResponse, status_code=status.HTTP_201_CREATED)
 def upload_document(
-    course_id: int = Form(...),
-    title: str = Form(...),
+    course_id: Optional[int] = Form(None),
+    course_name: Optional[str] = Form(None),
+    title: Optional[str] = Form(None),
     document_type: str = Form(..., description="Type: 'lecture', 'textbook', or 'solved_example'"),
-    file: UploadFile = File(...),
+    file: Optional[UploadFile] = File(default=None),
+    text_content: Optional[str] = Form(None),
     db: Session = Depends(get_db),
-    admin: User = Depends(get_current_admin),
+    current_user: User = Depends(get_current_user),
 ):
     """
-    Upload an educational document (PDF, DOCX, or TXT) for a course (Admin only).
+    Upload an educational document (PDF, DOCX, TXT) or paste raw study notes for a course.
     """
     doc = DocumentService.upload_document(
         db=db,
         course_id=course_id,
+        course_name=course_name,
         title=title,
         document_type=document_type,
         file=file,
+        text_content=text_content,
     )
     return DocumentUploadResponse(
         id=doc.id,
@@ -71,10 +75,10 @@ def get_document(
 def delete_document(
     document_id: int,
     db: Session = Depends(get_db),
-    admin: User = Depends(get_current_admin),
+    current_user: User = Depends(get_current_user),
 ):
     """
-    Delete a document and purge its text chunks/embeddings (Admin only).
+    Delete a document and purge its text chunks/embeddings.
     """
     DocumentService.delete_document(db, document_id)
     return None
